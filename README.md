@@ -32,8 +32,7 @@ Siga os passos abaixo para rodar a aplicação desktop.
 Se você ainda não o fez, clone o repositório principal que contém os três projetos.
 
 ```bash
-git clone <URL_DO_SEU_REPOSITORIO_GIT>
-cd <NOME_DO_REPOSITORIO>
+git clone <https://github.com/RafaelSilvaGomes/lista-tarefas-desktop.git>
 ```
 
 #### 2. Iniciar o Backend (API)
