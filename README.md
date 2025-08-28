@@ -1,6 +1,6 @@
 # Lista de Tarefas - Cliente Desktop (JavaFX)
 
-Este é o cliente Desktop para o projeto Full-Stack "Lista de Tarefas". A aplicação foi desenvolvida em Java com o framework JavaFX, criando uma interface nativa que consome a mesma API REST utilizada pelo [cliente Web (Angular)](../lista-tarefas-web).
+Este é o cliente Desktop para o projeto Full-Stack "Lista de Tarefas". A aplicação foi desenvolvida em Java com o framework JavaFX, criando uma interface nativa que consome a mesma API REST utilizada pelo [cliente Web (Angular)](https://github.com/RafaelSilvaGomes/lista-tarefas-web.git).
 
 ## Arquitetura do Projeto
 
@@ -22,7 +22,7 @@ Para compilar e executar esta aplicação, você precisará ter o seguinte softw
     * *Recomendação:* [Gluon Scene Builder para Java 17+](https://gluonhq.com/products/scene-builder/).
 * **Git**: Para clonar o repositório.
 
-**⚠️ Importante:** Para que o cliente desktop funcione, a **API do backend (`lista-tarefas-api`) precisa estar em execução**.
+**⚠️ Importante:** Para que o cliente desktop funcione, a **[API do backend (`lista-tarefas-api`)](https://github.com/RafaelSilvaGomes/lista-tarefas-api) precisa estar em execução**.
 
 ## Como Executar o Projeto
 
