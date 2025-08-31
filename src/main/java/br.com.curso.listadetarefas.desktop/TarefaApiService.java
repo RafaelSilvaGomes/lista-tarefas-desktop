@@ -2,7 +2,6 @@ package br.com.curso.listadetarefas.desktop;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -29,7 +28,7 @@ public class TarefaApiService {
         return Collections.emptyList();
     }
 
-    public Tarefa adicionarTarefa(Tarefa novaTarefa) {
+    public void adicionarTarefa(Tarefa novaTarefa) {
         try {
             String jsonBody = objectMapper.writeValueAsString(novaTarefa);
             HttpRequest request = HttpRequest.newBuilder()
@@ -37,14 +36,10 @@ public class TarefaApiService {
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
                     .build();
-            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() == 200 || response.statusCode() == 201) {
-                return objectMapper.readValue(response.body(), Tarefa.class);
-            }
+            client.send(request, HttpResponse.BodyHandlers.ofString());
         } catch (IOException | InterruptedException e) {
             e.printStackTrace();
         }
-        return null;
     }
 
     public void atualizarTarefa(Tarefa tarefa) {

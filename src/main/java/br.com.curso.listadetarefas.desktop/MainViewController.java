@@ -2,183 +2,206 @@ package br.com.curso.listadetarefas.desktop;
 
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
+import javafx.geometry.Pos;
 import javafx.scene.control.*;
+import javafx.scene.control.cell.CheckBoxTableCell;
 import javafx.scene.control.cell.PropertyValueFactory;
-import javafx.scene.control.cell.TextFieldTableCell;
-import javafx.util.Callback;
-
+import javafx.scene.layout.HBox;
 import java.net.URL;
 import java.util.List;
+import java.util.Optional;
 import java.util.ResourceBundle;
+import java.util.stream.Collectors;
 
 public class MainViewController implements Initializable {
 
-    // --- Componentes da Interface (@FXML) ---
     @FXML private TableView<Tarefa> tabelaTarefas;
+    @FXML private TableColumn<Tarefa, Boolean> colunaSelecao;
     @FXML private TableColumn<Tarefa, Boolean> colunaConcluida;
     @FXML private TableColumn<Tarefa, String> colunaDescricao;
     @FXML private TableColumn<Tarefa, Void> colunaAcoes;
-    @FXML private TextField campoNovaTarefa;
-    @FXML private Button botaoAdicionar;
-    @FXML private Label labelStatus;
-    @FXML private Button botaoAtualizar;
+    @FXML private TextField novaTarefaTextField;
 
-    // --- Lógica de Negócio ---
-    private final TarefaApiService tarefaApiService = new TarefaApiService();
-    private final ObservableList<Tarefa> tarefasObservaveis = FXCollections.observableArrayList();
+    private final TarefaApiService tarefaService = new TarefaApiService();
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
-        // Vincula a lista observável à tabela. Qualquer mudança na lista, reflete na tabela.
-        tabelaTarefas.setItems(tarefasObservaveis);
-        // Habilita a edição da tabela (necessário para editar a descrição)
-        tabelaTarefas.setEditable(true);
-
-        // --- Configuração das Colunas ---
-        // Coluna Descrição: Pega o valor do atributo "descricao" do objeto Tarefa
-        colunaDescricao.setCellValueFactory(new PropertyValueFactory<>("descricao"));
-        // Torna a célula da descrição um campo de texto editável com duplo clique
-        colunaDescricao.setCellFactory(TextFieldTableCell.forTableColumn());
-        // Define o que fazer quando a edição é confirmada (pressionar Enter)
-        colunaDescricao.setOnEditCommit(event -> {
-            Tarefa tarefaEditada = event.getRowValue();
-            tarefaEditada.setDescricao(event.getNewValue());
-            atualizarTarefa(tarefaEditada);
-        });
-
-        // Coluna Concluída: Pega o valor do atributo "concluida"
-        colunaConcluida.setCellValueFactory(new PropertyValueFactory<>("concluida"));
-        // Customiza a célula para mostrar um CheckBox
-        colunaConcluida.setCellFactory(tc -> new TableCell<>() {
-            private final CheckBox checkBox = new CheckBox();
-            {
-                // Quando o checkbox é clicado, atualiza a tarefa
-                checkBox.setOnAction(event -> {
-                    Tarefa tarefa = getTableRow().getItem();
-                    if (tarefa != null) {
-                        tarefa.setConcluida(checkBox.isSelected());
-                        atualizarTarefa(tarefa);
-                    }
-                });
-            }
-            @Override
-            protected void updateItem(Boolean item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty || item == null) {
-                    setGraphic(null);
-                } else {
-                    checkBox.setSelected(item);
-                    setGraphic(checkBox);
-                }
-            }
-        });
-
-        // Coluna Ações: Customiza a célula para mostrar um botão "Deletar"
-        Callback<TableColumn<Tarefa, Void>, TableCell<Tarefa, Void>> cellFactory = param -> new TableCell<>() {
-            private final Button btnDeletar = new Button("Deletar");
-            {
-                btnDeletar.setOnAction(event -> {
-                    Tarefa tarefa = getTableView().getItems().get(getIndex());
-                    deletarTarefa(tarefa);
-                });
-            }
-            @Override
-            public void updateItem(Void item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty) {
-                    setGraphic(null);
-                } else {
-                    setGraphic(btnDeletar);
-                }
-            }
-        };
-        colunaAcoes.setCellFactory(cellFactory);
-
-        // Carrega os dados da API ao iniciar a tela.
+        configurarTabela();
         carregarTarefas();
     }
 
-    // --- Métodos de Ação (chamados pelos botões) ---
+    private void configurarTabela() {
+        // Coluna de Seleção
+        colunaSelecao.setCellValueFactory(cellData -> cellData.getValue().selecionadaProperty());
+        colunaSelecao.setCellFactory(CheckBoxTableCell.forTableColumn(colunaSelecao));
+        colunaSelecao.setEditable(true);
+
+        // Coluna de Status (com correção de sincronização)
+        colunaConcluida.setCellValueFactory(new PropertyValueFactory<>("concluida"));
+        colunaConcluida.setCellFactory(CheckBoxTableCell.forTableColumn(colunaConcluida));
+        colunaConcluida.setOnEditCommit(event -> {
+            Tarefa tarefa = event.getRowValue();
+            tarefa.setConcluida(event.getNewValue());
+            atualizarTarefa(tarefa);
+        });
+
+        // Coluna de Descrição
+        colunaDescricao.setCellValueFactory(new PropertyValueFactory<>("descricao"));
+
+        // Coluna de Ações
+        colunaAcoes.setCellFactory(param -> new TableCell<>() {
+            private final Button btnEditar = new Button("Editar");
+            private final Button btnExcluir = new Button("Excluir");
+            private final HBox pane = new HBox(5, btnEditar, btnExcluir);
+            {
+                pane.setAlignment(Pos.CENTER);
+                btnEditar.setStyle("-fx-base: #FFC107;");
+                btnExcluir.setStyle("-fx-base: #F44336; -fx-text-fill: white;");
+                btnEditar.setOnAction(event -> abrirDialogoEdicao(getTableView().getItems().get(getIndex())));
+                btnExcluir.setOnAction(event -> confirmarExclusao(getTableView().getItems().get(getIndex())));
+            }
+            @Override
+            protected void updateItem(Void item, boolean empty) {
+                super.updateItem(item, empty);
+                setGraphic(empty ? null : pane);
+            }
+        });
+
+        tabelaTarefas.setEditable(true);
+    }
+
     @FXML
-    private void atualizarListaDeTarefas() {
-        carregarTarefas();
+    private void carregarTarefas() {
+        Task<List<Tarefa>> task = new Task<>() {
+            @Override
+            protected List<Tarefa> call() {
+                return tarefaService.listarTarefas();
+            }
+        };
+        task.setOnSucceeded(e -> tabelaTarefas.setItems(FXCollections.observableArrayList(task.getValue())));
+        task.setOnFailed(e -> exibirAlerta("Erro", "Não foi possível carregar as tarefas."));
+        new Thread(task).start();
     }
 
     @FXML
     private void adicionarTarefa() {
-        String descricao = campoNovaTarefa.getText();
-        if (descricao == null || descricao.trim().isEmpty()) {
-            labelStatus.setText("Status: Descrição não pode ser vazia.");
+        String descricao = novaTarefaTextField.getText().trim();
+        if (descricao.isEmpty()) {
+            exibirAlerta("Campo Vazio", "A descrição não pode ser vazia.");
             return;
         }
-
         Tarefa novaTarefa = new Tarefa();
-        novaTarefa.setDescricao(descricao.trim());
+        novaTarefa.setDescricao(descricao);
         novaTarefa.setConcluida(false);
 
-        // Executa a chamada de rede em uma thread separada para não travar a UI
-        executarEmBackground(() -> {
-            Tarefa tarefaCriada = tarefaApiService.adicionarTarefa(novaTarefa);
-            if (tarefaCriada != null) {
-                // Atualiza a interface na thread do JavaFX
-                Platform.runLater(() -> {
-                    tarefasObservaveis.add(tarefaCriada);
-                    campoNovaTarefa.clear();
-                    labelStatus.setText("Status: Tarefa adicionada!");
-                });
-            }
-        });
-    }
-
-    // --- Métodos de Lógica Interna ---
-    private void carregarTarefas() {
-        executarEmBackground(() -> {
-            List<Tarefa> tarefasDaApi = tarefaApiService.listarTarefas();
-            Platform.runLater(() -> {
-                tarefasObservaveis.setAll(tarefasDaApi);
-                labelStatus.setText("Status: Tarefas carregadas.");
-            });
-        });
-    }
-
-    private void atualizarTarefa(Tarefa tarefa) {
-        executarEmBackground(() -> {
-            tarefaApiService.atualizarTarefa(tarefa);
-            Platform.runLater(() -> labelStatus.setText("Status: Tarefa '" + tarefa.getDescricao() + "' atualizada."));
-        });
-    }
-
-    private void deletarTarefa(Tarefa tarefa) {
-        executarEmBackground(() -> {
-            tarefaApiService.deletarTarefa(tarefa.getId());
-            Platform.runLater(() -> {
-                tarefasObservaveis.remove(tarefa);
-                labelStatus.setText("Status: Tarefa deletada.");
-            });
-        });
-    }
-
-    /**
-     * Helper para executar tarefas de longa duração (como chamadas de rede)
-     * em uma thread de fundo para não congelar a interface do usuário.
-     */
-    private void executarEmBackground(Runnable acao) {
-        labelStatus.setText("Status: Processando...");
         Task<Void> task = new Task<>() {
             @Override
             protected Void call() {
-                acao.run();
+                tarefaService.adicionarTarefa(novaTarefa);
+                return null;
+            }
+        };
+        task.setOnSucceeded(e -> {
+            novaTarefaTextField.clear();
+            carregarTarefas();
+        });
+        task.setOnFailed(e -> exibirAlerta("Erro", "Não foi possível criar a tarefa."));
+        new Thread(task).start();
+    }
+
+    private void atualizarTarefa(Tarefa tarefa) {
+        Task<Void> task = new Task<>() {
+            @Override
+            protected Void call() {
+                tarefaService.atualizarTarefa(tarefa);
                 return null;
             }
         };
         task.setOnFailed(e -> {
-            task.getException().printStackTrace();
-            Platform.runLater(() -> labelStatus.setText("Status: Erro na operação. Veja o console."));
+            exibirAlerta("Erro", "Não foi possível sincronizar a tarefa. Recarregando...");
+            carregarTarefas();
         });
         new Thread(task).start();
+    }
+
+    private void abrirDialogoEdicao(Tarefa tarefa) {
+        TextInputDialog dialog = new TextInputDialog(tarefa.getDescricao());
+        dialog.setTitle("Editar Tarefa");
+        dialog.setHeaderText("Editando a tarefa: " + tarefa.getDescricao());
+        dialog.setContentText("Nova descrição:");
+
+        dialog.showAndWait().ifPresent(novaDescricao -> {
+            if (!novaDescricao.trim().isEmpty()) {
+                tarefa.setDescricao(novaDescricao.trim());
+                atualizarTarefa(tarefa);
+                tabelaTarefas.refresh();
+            }
+        });
+    }
+
+    private void confirmarExclusao(Tarefa tarefa) {
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.setTitle("Confirmar Exclusão");
+        alert.setHeaderText("Excluir tarefa: " + tarefa.getDescricao());
+        alert.setContentText("Você tem certeza?");
+        alert.showAndWait().filter(r -> r == ButtonType.OK).ifPresent(r -> deletarTarefa(tarefa));
+    }
+
+    private void deletarTarefa(Tarefa tarefa) {
+        Task<Void> task = new Task<>() {
+            @Override
+            protected Void call() {
+                tarefaService.deletarTarefa(tarefa.getId());
+                return null;
+            }
+        };
+        task.setOnSucceeded(e -> carregarTarefas());
+        task.setOnFailed(e -> exibirAlerta("Erro", "Não foi possível excluir a tarefa."));
+        new Thread(task).start();
+    }
+
+    @FXML
+    private void deletarTarefasSelecionadas() {
+        List<Tarefa> tarefasParaExcluir = tabelaTarefas.getItems().stream()
+                .filter(Tarefa::isSelecionada)
+                .collect(Collectors.toList());
+
+        if (tarefasParaExcluir.isEmpty()) {
+            exibirAlerta("Nenhuma Seleção", "Nenhuma tarefa foi selecionada.");
+            return;
+        }
+
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.setTitle("Confirmar Exclusão em Massa");
+        alert.setHeaderText("Excluir " + tarefasParaExcluir.size() + " tarefa(s)");
+        alert.setContentText("Você tem certeza?");
+
+        alert.showAndWait().filter(r -> r == ButtonType.OK).ifPresent(r -> {
+            Task<Void> task = new Task<>() {
+                @Override
+                protected Void call() {
+                    for (Tarefa tarefa : tarefasParaExcluir) {
+                        tarefaService.deletarTarefa(tarefa.getId());
+                    }
+                    return null;
+                }
+            };
+            task.setOnSucceeded(e -> carregarTarefas());
+            task.setOnFailed(e -> exibirAlerta("Erro", "Ocorreu um erro ao excluir as tarefas."));
+            new Thread(task).start();
+        });
+    }
+
+    private void exibirAlerta(String titulo, String mensagem) {
+        Platform.runLater(() -> {
+            Alert alert = new Alert(Alert.AlertType.WARNING);
+            alert.setTitle(titulo);
+            alert.setHeaderText(null);
+            alert.setContentText(mensagem);
+            alert.showAndWait();
+        });
     }
 }
