@@ -45,15 +45,24 @@ Esta é a etapa mais crucial. O cliente desktop precisa da API para buscar e sal
 
 #### 3. Abrir e Executar o Projeto Desktop
 
-1.  Na sua IDE (IntelliJ IDEA), abra o projeto `lista-tarefas-desktop` como um novo projeto.
-    * Vá em `File` -> `Open...` e selecione a pasta `lista-tarefas-desktop`.
-2.  Aguarde a IDE reconhecer o projeto Maven e baixar as dependências declaradas no `pom.xml`. Se necessário, clique no ícone "Reload All Maven Projects".
-3.  Execute a aplicação:
-    * Navegue até `src/main/java/br/com/curso/listadetarefas/desktop/`.
-    * Encontre a classe `MainApp.java`.
-    * Clique com o botão direito sobre ela e selecione **`Run 'MainApp.main()'`**.
+1.  **Construa o arquivo `.jar`**
+    No terminal, navegue até a raiz do projeto e execute o comando Maven:
+    ```bash
+    mvn clean package
+    ```
 
-A janela da aplicação desktop deve aparecer e, após alguns instantes, carregar as tarefas da API.
+2.  **Execute a Aplicação**
+    Após a construção, rode o arquivo `.jar` que foi gerado na pasta `target/`:
+    ```bash
+    java -jar target/listadetarefas-desktop-1.0-SNAPSHOT.jar
+    ```
+
+3.  **Teste as Funcionalidades**
+    Com a aplicação aberta, verifique se todas as funcionalidades estão operando corretamente:
+    * Adicionar e deletar tarefas.
+    * Atualizar a lista.
+    * Marcar tarefas como concluídas.
+    * Editar a descrição de uma tarefa.
 
 ## Funcionalidades
 
